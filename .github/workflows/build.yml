@@ -1,0 +1,41 @@
+name: Compilar OTClient
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Windows Release
+    runs-on: windows-2025-vs2026
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v6
+
+      - name: Ler versão do vcpkg
+        shell: pwsh
+        run: |
+          $json = Get-Content vcpkg.json -Raw | ConvertFrom-Json
+          "VCPKG_GIT_COMMIT_ID=$($json.'builtin-baseline')" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Instalar vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitURL: https://github.com/microsoft/vcpkg.git
+          vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
+
+      - name: Compilar OTClient
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: windows-release
+          buildPreset: windows-release
+          configurePresetAdditionalArgs: "['-DTOGGLE_BIN_FOLDER=ON', '-DOPTIONS_ENABLE_IPO=OFF', '-DOTCLIENT_BUILD_TESTS=OFF']"
+
+      - name: Disponibilizar OTClient
+        uses: actions/upload-artifact@v7
+        with:
+          name: OTClient-Windows
+          path: build/windows-release/bin/
